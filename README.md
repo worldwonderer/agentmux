@@ -217,4 +217,8 @@ pytest -m integration
 
 MIT – see [LICENSE](LICENSE).
 
+## Community
+
+[LINUX DO - The New Ideal Community](https://linux.do)
+
 
