@@ -59,16 +59,19 @@ class TestGetBridgeStatus:
     def test_empty(self) -> None:
         """Test status with no sessions."""
         controller = MagicMock()
+        controller.config.agent = "claude"
         controller.sessions.get_active.return_value = None
         controller.sessions.list_sessions.return_value = []
         status = get_bridge_status(controller)
         assert status["ok"] is True
+        assert status["agent"] == "claude"
         assert status["active_session"] is None
         assert status["total_sessions"] == 0
 
     def test_with_sessions(self) -> None:
         """Test status with active and inactive sessions."""
         controller = MagicMock()
+        controller.config.agent = "claude"
         controller.sessions.get_active.return_value = SessionInfo(name="active", target="a:1.0")
         controller.sessions.list_sessions.return_value = [
             SessionInfo(name="active", target="a:1.0"),
@@ -88,6 +91,7 @@ class TestGetBridgeStatus:
     def test_dead_session(self) -> None:
         """Test status marks dead sessions."""
         controller = MagicMock()
+        controller.config.agent = "claude"
         controller.sessions.get_active.return_value = None
         controller.sessions.list_sessions.return_value = [
             SessionInfo(name="dead", target="d:1.0"),
@@ -109,6 +113,7 @@ class TestServerIntegration:
     ):
         """Yield a running test server and its port."""
         controller = MagicMock()
+        controller.config = bridge_config
         controller.sessions.get_active.return_value = None
         controller.sessions.list_sessions.return_value = []
         controller.sessions.active = ""

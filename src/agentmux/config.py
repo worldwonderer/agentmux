@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
+from agentmux.agent_profile import get_profile
 from agentmux.constants import DEFAULT_PATH
 
 
@@ -92,11 +93,14 @@ class BridgeConfig:
     workdir: str = field(
         default_factory=lambda: _env_or_file("AGENTMUX_WORKDIR", "workdir", str(Path.home()))
     )
+    agent: str = field(
+        default_factory=lambda: _env_or_file("AGENTMUX_AGENT", "agent", "claude")
+    )
     repl_cmd: str = field(
-        default_factory=lambda: _env_or_file("AGENTMUX_REPL_CMD", "repl_cmd", "claude")
+        default_factory=lambda: _env_or_file("AGENTMUX_REPL_CMD", "repl_cmd", "")
     )
     startup_delay: float = field(
-        default_factory=lambda: _env_or_file_float("AGENTMUX_STARTUP_DELAY", "startup_delay", 3.0)
+        default_factory=lambda: _env_or_file_float("AGENTMUX_STARTUP_DELAY", "startup_delay", -1.0)
     )
     log_file: str = field(
         default_factory=lambda: _env_or_file(
@@ -112,6 +116,23 @@ class BridgeConfig:
             False,
         )
     )
+
+    @property
+    def profile(self):
+        """Return the agent profile for the current agent type."""
+        return get_profile(self.agent)
+
+    @property
+    def effective_repl_cmd(self) -> str:
+        """Return repl_cmd if explicitly set, otherwise the profile default."""
+        return self.repl_cmd or self.profile.default_repl_cmd
+
+    @property
+    def effective_startup_delay(self) -> float:
+        """Return startup_delay if explicitly set, otherwise the profile default."""
+        if self.startup_delay >= 0:
+            return self.startup_delay
+        return self.profile.default_startup_delay
 
     def build_env(self) -> dict[str, str]:
         """Return a process environment with a launchd-safe PATH."""

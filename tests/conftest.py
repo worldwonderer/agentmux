@@ -21,7 +21,8 @@ def bridge_config(tmp_path: Path) -> BridgeConfig:
         session_prefix="test-bridge",
         window_name="repl",
         workdir=str(tmp_path),
-        repl_cmd="claude",
+        agent="claude",
+        repl_cmd="",
         startup_delay=0.1,
         log_file=str(tmp_path / "bridge.log"),
     )

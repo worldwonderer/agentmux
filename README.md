@@ -43,21 +43,6 @@ cd agentmux
 pip install -e ".[dev]"
 ```
 
-### Via pip (when published)
-
-```bash
-pip install agentmux
-```
-
-<details>
-<summary>Installing the latest dev build</summary>
-
-```bash
-pip install agentmux --pre --index-url https://test.pypi.org/simple/
-```
-
-</details>
-
 ---
 
 ## Quick Start
@@ -107,12 +92,27 @@ All settings are controlled via environment variables:
 | `AGENTMUX_HOST` | `127.0.0.1` | HTTP server bind address |
 | `AGENTMUX_PORT` | `8765` | HTTP server port |
 | `AGENTMUX_TOKEN` | *(empty)* | Bearer token for API auth |
+| `AGENTMUX_AGENT` | `claude` | Agent type: `claude` or `codex` |
 | `AGENTMUX_SESSION` | `agentmux` | tmux session name prefix |
 | `AGENTMUX_WINDOW` | `repl` | tmux window name |
 | `AGENTMUX_WORKDIR` | `$HOME` | Working directory for new sessions |
-| `AGENTMUX_REPL_CMD` | `claude` | Command to launch the agent REPL |
-| `AGENTMUX_STARTUP_DELAY` | `3.0` | Seconds to wait after launching the REPL |
+| `AGENTMUX_REPL_CMD` | *(profile default)* | Command to launch the agent REPL (overrides profile default) |
+| `AGENTMUX_STARTUP_DELAY` | *(profile default)* | Seconds to wait after launching the REPL (overrides profile default) |
 | `AGENTMUX_LOG_FILE` | `~/.agentmux/agentmux.log` | Path to bridge log file |
+
+### Supported agents
+
+| Agent | `AGENTMUX_AGENT` | Default REPL command | Startup delay |
+|-------|-------------------|---------------------|---------------|
+| Claude | `claude` | `claude` | 3.0s |
+| Codex | `codex` | `codex --no-alt-screen --full-auto` | 5.0s |
+
+### Using with Codex
+
+```bash
+export AGENTMUX_AGENT=codex
+agentmux serve
+```
 
 ---
 
@@ -205,6 +205,7 @@ pytest -m integration
 | Module | Responsibility |
 |--------|--------------|
 | `config.py` | Environment-based configuration + logging setup |
+| `agent_profile.py` | Per-agent idle patterns and REPL defaults |
 | `session.py` | Thread-safe session registry (`SessionManager`) |
 | `tmux.py` | All tmux subprocess operations (`TmuxController`) |
 | `server.py` | HTTP API handler and server lifecycle |

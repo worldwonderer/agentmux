@@ -32,14 +32,14 @@
     <string>8765</string>
     <key>AGENTMUX_TOKEN</key>
     <string>REPLACE_WITH_A_RANDOM_TOKEN</string>
+    <key>AGENTMUX_AGENT</key>
+    <string>claude</string>
     <key>AGENTMUX_SESSION</key>
     <string>agentmux</string>
     <key>AGENTMUX_WINDOW</key>
     <string>repl</string>
     <key>AGENTMUX_WORKDIR</key>
     <string>/ABSOLUTE/PATH/TO/WORKDIR</string>
-    <key>AGENTMUX_REPL_CMD</key>
-    <string>claude</string>
     <key>AGENTMUX_STARTUP_DELAY</key>
     <string>1.0</string>
   </dict>

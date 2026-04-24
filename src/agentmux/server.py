@@ -60,6 +60,7 @@ def get_bridge_status(controller: TmuxController) -> dict[str, Any]:
 
     result: dict[str, Any] = {
         "ok": True,
+        "agent": controller.config.agent,
         "active_session": active_info.name if active_info else None,
         "total_sessions": len(all_sessions),
         "sessions": [],

@@ -129,7 +129,7 @@ class TmuxController:
         repeat: int = 1,
         target: str | None = None,
     ) -> str:
-        """Send a non-text tmux key into the Claude pane."""
+        """Send a non-text tmux key into the REPL pane."""
         resolved_target = self.resolve_target(target)
         tmux_key = SPECIAL_KEYS.get(key_name.lower())
         if not tmux_key:
@@ -158,33 +158,41 @@ class TmuxController:
         return {"target": resolved_target, "lines": safe_lines, "content": result.stdout}
 
     def is_idle(self, *, target: str | None = None) -> bool:
-        """Check if Claude is at the idle prompt."""
+        """Check if the agent REPL is at the idle prompt."""
+        pattern = self.config.profile.idle_pattern
         capture = self.capture_pane(lines=15, target=target)
         content = capture.get("content", "")
         lines = [line.strip() for line in content.split("\n") if line.strip()]
         tail = "\n".join(lines[-5:])
-        return bool(re.search(r"❯\s*$", tail, re.MULTILINE))
+        return bool(re.search(pattern, tail, re.MULTILINE))
 
     def get_ctx_percent(self, *, target: str | None = None) -> int | None:
-        """Extract ctx percentage from the Claude status bar."""
+        """Extract context/token usage percentage from the agent status bar."""
+        pattern = self.config.profile.ctx_pattern
+        if pattern is None:
+            return None
         capture = self.capture_pane(lines=5, target=target)
         content = capture.get("content", "")
-        match = re.search(r"ctx:(\d+)%", content)
+        match = re.search(pattern, content)
         return int(match.group(1)) if match else None
 
     def dismiss_trust_prompt(self, *, target: str | None = None) -> bool:
-        """Dismiss the trust folder prompt if present. Returns True if dismissed."""
+        """Dismiss the trust folder prompt if present."""
+        if not self.config.profile.has_trust_prompt:
+            return False
         capture = self.capture_pane(lines=20, target=target)
         content = capture.get("content", "").lower()
-        if "trust this folder" in content:
+        if "trust this folder" in content or "trust the contents" in content:
             self.logger.info("Dismissing trust prompt")
             self.send_special_key("enter", target=target)
-            time.sleep(self.config.startup_delay)
+            time.sleep(self.config.effective_startup_delay)
             return True
         return False
 
     def dismiss_bypass_warning(self, *, target: str | None = None) -> bool:
-        """Accept the --dangerously-skip-permissions warning if present."""
+        """Accept the --dangerously-skip-permissions warning."""
+        if not self.config.profile.has_bypass_warning:
+            return False
         capture = self.capture_pane(lines=25, target=target)
         content = capture.get("content", "")
         if "yes, i accept" in content.lower():
@@ -192,33 +200,7 @@ class TmuxController:
             self.send_special_key("down", target=target)
             time.sleep(0.3)
             self.send_special_key("enter", target=target)
-            time.sleep(self.config.startup_delay)
-            return True
-        return False
-
-    def dismiss_bypass_warning(self, *, target: str | None = None) -> bool:
-        """Accept the --dangerously-skip-permissions warning if present."""
-        capture = self.capture_pane(lines=25, target=target)
-        content = capture.get("content", "")
-        if "yes, i accept" in content.lower():
-            self.logger.info("Accepting bypass permissions warning")
-            self.send_special_key("down", target=target)
-            time.sleep(0.3)
-            self.send_special_key("enter", target=target)
-            time.sleep(self.config.startup_delay)
-            return True
-        return False
-
-    def dismiss_bypass_warning(self, *, target: str | None = None) -> bool:
-        """Accept the --dangerously-skip-permissions warning if present."""
-        capture = self.capture_pane(lines=25, target=target)
-        content = capture.get("content", "")
-        if "yes, i accept" in content.lower():
-            self.logger.info("Accepting bypass permissions warning")
-            self.send_special_key("down", target=target)
-            time.sleep(0.3)
-            self.send_special_key("enter", target=target)
-            time.sleep(self.config.startup_delay)
+            time.sleep(self.config.effective_startup_delay)
             return True
         return False
 
@@ -252,10 +234,10 @@ class TmuxController:
                 # Change into the working directory before launching the REPL.
                 self.send_literal(f"cd {shlex.quote(self.config.workdir)}", target=target)
                 time.sleep(0.3)
-                self.send_literal(self.config.repl_cmd, target=target)
-                time.sleep(self.config.startup_delay)
+                self.send_literal(self.config.effective_repl_cmd, target=target)
+                time.sleep(self.config.effective_startup_delay)
 
-                # Auto-dismiss trust prompt and bypass permissions warning.
+                # Auto-dismiss agent-specific startup prompts.
                 self.dismiss_trust_prompt(target=target)
                 self.dismiss_bypass_warning(target=target)
                 self.sessions.set_status(name, "active")
@@ -274,25 +256,28 @@ class TmuxController:
             time.sleep(1)
             capture_data = self.capture_pane(lines=20, target=target)
             content = capture_data.get("content", "")
-            # Dismiss trust prompt if it appears.
-            if "trust this folder" in content.lower():
+
+            # Dismiss startup prompts if the agent profile declares them.
+            if self.config.profile.has_trust_prompt and (
+                "trust this folder" in content.lower() or "trust the contents" in content.lower()
+            ):
                 self.logger.info("wait_for_ready: dismissing trust prompt")
                 self.send_special_key("enter", target=target)
                 time.sleep(8)
                 continue
-            # Accept bypass permissions warning if it appears.
-            if "yes, i accept" in content.lower():
+            if self.config.profile.has_bypass_warning and "yes, i accept" in content.lower():
                 self.logger.info("wait_for_ready: accepting bypass warning")
                 self.send_special_key("down", target=target)
                 time.sleep(0.3)
                 self.send_special_key("enter", target=target)
                 time.sleep(8)
                 continue
-            # Check for REPL idle prompt.
-            if "❯" in content:
+
+            # Check for idle prompt using the agent profile pattern.
+            if re.search(self.config.profile.idle_pattern, content, re.MULTILINE):
                 time.sleep(2)
                 capture2 = self.capture_pane(lines=5, target=target)
-                if "❯" in capture2.get("content", ""):
+                if re.search(self.config.profile.idle_pattern, capture2.get("content", ""), re.MULTILINE):
                     self.logger.info("REPL ready (idle prompt detected)")
                     return True
         self.logger.warning("REPL did not become ready within %.0fs", timeout)

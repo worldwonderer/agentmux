@@ -137,6 +137,26 @@ class TestTmuxController:
         with patch.object(tmux_controller, "_run_tmux", return_value=mock_result):
             assert tmux_controller.is_idle() is False
 
+    def test_is_idle_codex_prompt(
+        self, tmux_controller: TmuxController, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test is_idle detects the Codex idle prompt (status bar)."""
+        tmux_controller.config.agent = "codex"
+        tmux_controller.sessions.register("s", "s:1.0")
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = "Use /skills to list\n  gpt-5.4 high \u00b7 ~"
+        with patch.object(tmux_controller, "_run_tmux", return_value=mock_result):
+            assert tmux_controller.is_idle() is True
+
+    def test_is_idle_codex_not_greedy(self, tmux_controller: TmuxController) -> None:
+        """Test Codex pattern does not false-positive on common output."""
+        tmux_controller.config.agent = "codex"
+        tmux_controller.sessions.register("s", "s:1.0")
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = "processing...\nstill working on it"
+        with patch.object(tmux_controller, "_run_tmux", return_value=mock_result):
+            assert tmux_controller.is_idle() is False
+
     def test_get_ctx_percent(self, tmux_controller: TmuxController) -> None:
         """Test extracting ctx percentage."""
         tmux_controller.sessions.register("s", "s:1.0")
@@ -152,6 +172,12 @@ class TestTmuxController:
         mock_result.stdout = "no ctx here"
         with patch.object(tmux_controller, "_run_tmux", return_value=mock_result):
             assert tmux_controller.get_ctx_percent() is None
+
+    def test_get_ctx_percent_codex_returns_none(self, tmux_controller: TmuxController) -> None:
+        """Test ctx_percent returns None for Codex (no ctx pattern)."""
+        tmux_controller.config.agent = "codex"
+        tmux_controller.sessions.register("s", "s:1.0")
+        assert tmux_controller.get_ctx_percent() is None
 
     def test_dismiss_trust_prompt(self, tmux_controller: TmuxController) -> None:
         """Test trust prompt dismissal."""
@@ -178,6 +204,28 @@ class TestTmuxController:
             dismissed = tmux_controller.dismiss_trust_prompt()
             assert dismissed is False
             mock_key.assert_not_called()
+
+    def test_dismiss_trust_prompt_codex(self, tmux_controller: TmuxController) -> None:
+        """Test Codex trust prompt dismissal."""
+        tmux_controller.config.agent = "codex"
+        assert tmux_controller.config.profile.has_trust_prompt
+        tmux_controller.sessions.register("s", "s:1.0")
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = "Do you trust the contents of this directory?"
+        with (
+            patch.object(tmux_controller, "_run_tmux", return_value=mock_result),
+            patch.object(tmux_controller, "send_special_key") as mock_key,
+        ):
+            dismissed = tmux_controller.dismiss_trust_prompt()
+            assert dismissed is True
+            mock_key.assert_called_once_with("enter", target=None)
+
+    def test_dismiss_bypass_warning_skipped_for_codex(self, tmux_controller: TmuxController) -> None:
+        """Test bypass warning dismissal is skipped when profile disables it."""
+        tmux_controller.config.agent = "codex"
+        assert not tmux_controller.config.profile.has_bypass_warning
+        tmux_controller.sessions.register("s", "s:1.0")
+        assert tmux_controller.dismiss_bypass_warning() is False
 
     def test_generate_session_name_format(self, tmux_controller: TmuxController) -> None:
         """Test session name contains prefix and timestamp."""
