@@ -324,7 +324,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
         try:
             if isinstance(value, bool):
                 raise TypeError
-            parsed = int(value)
+            parsed: int = int(str(value))
         except (TypeError, ValueError) as exc:
             raise RequestError(HTTPStatus.BAD_REQUEST, f"{name} must be an integer") from exc
 

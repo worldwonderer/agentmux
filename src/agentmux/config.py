@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
-from agentmux.agent_profile import get_profile
+from agentmux.agent_profile import AgentProfile, get_profile
 from agentmux.constants import DEFAULT_PATH
 
 
@@ -114,7 +114,7 @@ class BridgeConfig:
     )
 
     @property
-    def profile(self):
+    def profile(self) -> AgentProfile:
         """Return the agent profile for the current agent type."""
         return get_profile(self.agent)
 
@@ -128,7 +128,7 @@ class BridgeConfig:
         """Return startup_delay if explicitly set, otherwise the profile default."""
         if self.startup_delay >= 0:
             return self.startup_delay
-        return self.profile.default_startup_delay
+        return float(self.profile.default_startup_delay)
 
     def build_env(self) -> dict[str, str]:
         """Return a process environment with a launchd-safe PATH."""
