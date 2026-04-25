@@ -220,7 +220,9 @@ class TestTmuxController:
             assert dismissed is True
             mock_key.assert_called_once_with("enter", target=None)
 
-    def test_dismiss_bypass_warning_skipped_for_codex(self, tmux_controller: TmuxController) -> None:
+    def test_dismiss_bypass_warning_skipped_for_codex(
+        self, tmux_controller: TmuxController
+    ) -> None:
         """Test bypass warning dismissal is skipped when profile disables it."""
         tmux_controller.config.agent = "codex"
         assert not tmux_controller.config.profile.has_bypass_warning

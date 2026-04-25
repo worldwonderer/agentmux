@@ -208,7 +208,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
                     self.logger.info("/run: creating new session (fresh context)")
                     new_info = self.controller.create_session()
                     try:
-                        ready = self.controller.wait_for_repl_ready(target=new_info.target, timeout=30)
+                        ready = self.controller.wait_for_repl_ready(
+                            target=new_info.target, timeout=30
+                        )
                         if not ready:
                             self.controller.rollback_session(new_info.name)
                             raise RequestError(
@@ -261,7 +263,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 with self.controller.lifecycle_lock:
                     active_info = self.controller.sessions.get_active()
                     replacement = self.controller.create_session()
-                    ready = self.controller.wait_for_repl_ready(target=replacement.target, timeout=30)
+                    ready = self.controller.wait_for_repl_ready(
+                        target=replacement.target, timeout=30
+                    )
                     if not ready:
                         self.controller.rollback_session(replacement.name)
                         raise RequestError(

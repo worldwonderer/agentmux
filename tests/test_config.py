@@ -64,7 +64,9 @@ class TestBridgeConfig:
         config = reloaded.BridgeConfig()
         assert config.effective_repl_cmd == "codex --no-alt-screen"
 
-    def test_explicit_startup_delay_overrides_profile(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_explicit_startup_delay_overrides_profile(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that explicit startup_delay takes priority over profile default."""
         monkeypatch.setenv("AGENTMUX_AGENT", "codex")
         monkeypatch.setenv("AGENTMUX_STARTUP_DELAY", "2.0")

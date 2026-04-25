@@ -11,7 +11,9 @@ from agentmux.tmux import TmuxController
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser."""
-    parser = argparse.ArgumentParser(description="AgentMux — HTTP bridge for managing AI agent REPL sessions via tmux")
+    parser = argparse.ArgumentParser(
+        description="AgentMux — HTTP bridge for managing AI agent REPL sessions via tmux"
+    )
     subparsers = parser.add_subparsers(dest="command", required=False)
 
     subparsers.add_parser("serve", help="Run the local HTTP bridge server")

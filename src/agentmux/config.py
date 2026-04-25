@@ -93,12 +93,8 @@ class BridgeConfig:
     workdir: str = field(
         default_factory=lambda: _env_or_file("AGENTMUX_WORKDIR", "workdir", str(Path.home()))
     )
-    agent: str = field(
-        default_factory=lambda: _env_or_file("AGENTMUX_AGENT", "agent", "claude")
-    )
-    repl_cmd: str = field(
-        default_factory=lambda: _env_or_file("AGENTMUX_REPL_CMD", "repl_cmd", "")
-    )
+    agent: str = field(default_factory=lambda: _env_or_file("AGENTMUX_AGENT", "agent", "claude"))
+    repl_cmd: str = field(default_factory=lambda: _env_or_file("AGENTMUX_REPL_CMD", "repl_cmd", ""))
     startup_delay: float = field(
         default_factory=lambda: _env_or_file_float("AGENTMUX_STARTUP_DELAY", "startup_delay", -1.0)
     )

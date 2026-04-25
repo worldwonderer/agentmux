@@ -277,7 +277,9 @@ class TmuxController:
             if re.search(self.config.profile.idle_pattern, content, re.MULTILINE):
                 time.sleep(2)
                 capture2 = self.capture_pane(lines=5, target=target)
-                if re.search(self.config.profile.idle_pattern, capture2.get("content", ""), re.MULTILINE):
+                if re.search(
+                    self.config.profile.idle_pattern, capture2.get("content", ""), re.MULTILINE
+                ):
                     self.logger.info("REPL ready (idle prompt detected)")
                     return True
         self.logger.warning("REPL did not become ready within %.0fs", timeout)
