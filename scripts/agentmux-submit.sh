@@ -18,6 +18,7 @@ TIMEOUT="${AGENTMUX_TIMEOUT:-600}"
 PROMPT=""
 OUTPUT_FILE=""
 POLL_INTERVAL="${AGENTMUX_POLL_INTERVAL:-10}"
+IDLE_STABLE_COUNT="${AGENTMUX_IDLE_STABLE_COUNT:-3}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -66,36 +67,43 @@ fi
 SESSION=$(echo "$RUN_RESP" | jq -r '.session')
 echo "[agentmux] sent → $SESSION" >&2
 
-# ── 2. Poll idle ───────────────────────────────────────────
+# ── 2. Poll idle (require N consecutive idle=true to confirm) ──
 ELAPSED=0
+CONSECUTIVE_IDLE=0
 while [[ $ELAPSED -lt $TIMEOUT ]]; do
   sleep "$POLL_INTERVAL"
   ELAPSED=$((ELAPSED + POLL_INTERVAL))
 
-  IDLE_RESP=$(curl -sf "${AUTH_ARGS[@]}" "$AGENTMUX_URL/idle" 2>/dev/null) || continue
+  IDLE_RESP=$(curl -sf "${AUTH_ARGS[@]}" "$AGENTMUX_URL/idle" 2>/dev/null) || {
+    CONSECUTIVE_IDLE=0
+    continue
+  }
   IDLE=$(echo "$IDLE_RESP" | jq -r '.idle')
 
   if [[ "$IDLE" == "true" ]]; then
-    echo "[agentmux] done (${ELAPSED}s, session: $SESSION)" >&2
+    CONSECUTIVE_IDLE=$((CONSECUTIVE_IDLE + 1))
+    if [[ $CONSECUTIVE_IDLE -ge $IDLE_STABLE_COUNT ]]; then
+      echo "[agentmux] done (${ELAPSED}s, session: $SESSION, stable after ${CONSECUTIVE_IDLE} checks)" >&2
 
-    # ── 3. Retrieve output ────────────────────────────────
-    if [[ -n "$OUTPUT_FILE" && -s "$OUTPUT_FILE" ]]; then
-      echo "[agentmux] output → $OUTPUT_FILE" >&2
-    elif [[ -n "$OUTPUT_FILE" ]]; then
-      # Fallback: capture tmux pane → output file
-      CAPTURE=$(curl -sf "${AUTH_ARGS[@]}" "$AGENTMUX_URL/capture?lines=500" 2>/dev/null || true)
-      if [[ -n "$CAPTURE" ]]; then
-        echo "$CAPTURE" | jq -r '.content' > "$OUTPUT_FILE" 2>/dev/null || true
+      # ── 3. Retrieve output ──────────────────────────────
+      if [[ -n "$OUTPUT_FILE" && -s "$OUTPUT_FILE" ]]; then
+        echo "[agentmux] output → $OUTPUT_FILE" >&2
+      elif [[ -n "$OUTPUT_FILE" ]]; then
+        CAPTURE=$(curl -sf "${AUTH_ARGS[@]}" "$AGENTMUX_URL/capture?lines=500" 2>/dev/null || true)
+        if [[ -n "$CAPTURE" ]]; then
+          echo "$CAPTURE" | jq -r '.content' > "$OUTPUT_FILE" 2>/dev/null || true
+        fi
+        echo "[agentmux] captured pane → $OUTPUT_FILE" >&2
+      else
+        CAPTURE=$(curl -sf "${AUTH_ARGS[@]}" "$AGENTMUX_URL/capture?lines=500" 2>/dev/null || true)
+        if [[ -n "$CAPTURE" ]]; then
+          echo "$CAPTURE" | jq -r '.content'
+        fi
       fi
-      echo "[agentmux] captured pane → $OUTPUT_FILE" >&2
-    else
-      # Print captured pane to stdout
-      CAPTURE=$(curl -sf "${AUTH_ARGS[@]}" "$AGENTMUX_URL/capture?lines=500" 2>/dev/null || true)
-      if [[ -n "$CAPTURE" ]]; then
-        echo "$CAPTURE" | jq -r '.content'
-      fi
+      exit 0
     fi
-    exit 0
+  else
+    CONSECUTIVE_IDLE=0
   fi
 
   (( ELAPSED % 30 == 0 )) && {
